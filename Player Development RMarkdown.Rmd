@@ -1,0 +1,126 @@
+---
+title: "Player Development Associate Position"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+# Depicting data is essential for data scientist to understand what the data is explaining. Throughout this assignment I show outcomes of pitches in relation to a generic strike zone and the result of each ball in play on the field. 
+
+# Here I load the data set off my GitHub into the Global Evironment of R
+
+```{r}
+url <- 'https://raw.githubusercontent.com/Chrisboatto/Player-Development-Data/main/TrackMan%20Data.csv?token=AKUDE7BOIJEBF3JX27NDIWLAG2BGU'
+
+MetsPlayerData <- read.csv(url)
+```
+
+# These packages are needed to complete this assignment
+
+```{r}
+require("dplyr")
+require("ggplot2")
+require("devtools")
+library(dplyr)
+library(ggplot2)
+library(devtools)
+```
+
+# First, I check both the structure and summary of the data set to gain a preliminary understanding of the data. The data consists of 85 attributes and 300 observations. I noticed that the gameId, date, and stadium, HomeTeam and AwayTeam have exactly the same results within their respective columns. Therefore I can make the conclusion that this data is from a single home game for the Mets against the Phillies. 
+```{r}
+str(MetsPlayerData)
+```
+
+```{r}
+summary(MetsPlayerData)
+```
+# For my first depiction I plan on gaining an uderstanding of the strike zone the umprire for the game had. In order to do this I needed to understand how many unique pitch outcomes there were. Below shows there are six outcomes within the dataset. 
+
+```{r}
+unique(MetsPlayerData$pitch_call)
+
+pitchCall <- table(MetsPlayerData$pitch_call)
+pitchCall
+```
+# I then began to clean the data. I removed all the columns that were not helpful in creating my depictions along with any column that had the value "NULL" throughout. These columns in my mind made the data expanded for no neccessary reason. By removing these I was able to read the data a lot easier without compromising the data itself. 
+
+# I then removed the HitByPitch result because it has no affect on depicting the strike zone itself. If a pitcher hits a batter it means he missed the zone by a wide margin thus does not help my desired result. 
+
+# Converting the columns positioned between 41:57 within the data set will help my offensive depiction. The attributes were set to 'Character' as one of their outputs was "NULL" result. When they were converted to 'Numeric' the "NULL" values changed to NA, thus the conversion performed successfully. 
+
+```{r}
+MetsPlayerData <- MetsPlayerData[, -c(2, 14, 20, 28, 34, 51:53, 55, 59, 69:73, 76:85)]
+MetsPlayerData <- filter(MetsPlayerData, pitch_call != "HitByPitch")
+MetsPlayerData[41:57] <- lapply(MetsPlayerData[41:57], as.numeric)
+```
+
+# The below depictions show the strike zone based off the result from each pitch thrown. Based on the depiction below you can make the assumption that the umpire had a fairly conservative strike zone as pitches placed in the zone were called balls yet none outside were called strikes. This allowed hitters to be more selective as you do not see many InPlay results outside of the strike zone. It is also interesting to see that no batters chased above the zone but did below.
+
+```{r}
+ggplot(MetsPlayerData, aes(plate_loc_x, plate_loc_z, col= pitch_call)) + 
+  geom_point(aes_string(x="plate_loc_x", y="plate_loc_z"), size=1.4) +
+  geom_rect(mapping = aes(ymax = 3.6, ymin = 1.6, xmax = -1.2, xmin = 1.2), alpha = 0, size=1.2, colour = "black") +
+  facet_wrap(~pitch_call) + 
+  labs(title = "Mets/Phillies Game Strike Zone", x = "Width of Plate", y = "Height of Zone")
+```
+# Below I created a chart to show how each pitcher in the game faired based on their velocity, spin rate, and break fro each pitch they threw. This chart would allow a person to scroll through and see what each pitchers' metrics were on average throughout the game and if for some reason they deviated from their norm. If so, someone would be able to immediately notice the drop and begin the process of assessing the pitcher.
+
+# I used the aggregate function muktiple times to determine the averages of each metric for each pitcher and pitch. I then bound the outputs together and removed the duplicate columns.
+
+```{r}
+MetsPlayerDataAggVelo <- aggregate(rel_speed ~ pitcher + pitch_type_auto, FUN = mean, data = MetsPlayerData)
+MetsPlayerDataAggSpin <- aggregate(spin_rate ~ pitcher + pitch_type_auto, FUN = mean, data = MetsPlayerData)
+MetsPlayerDataAggVertBreak <- aggregate(vert_break ~ pitcher + pitch_type_auto, FUN = mean, data = MetsPlayerData)
+MetsPlayerDataAggHorzBreak <- aggregate(horz_break ~ pitcher + pitch_type_auto, FUN = mean, data = MetsPlayerData)
+MetsPlayerDataAgg <- cbind(MetsPlayerDataAggHorzBreak, MetsPlayerDataAggSpin, MetsPlayerDataAggVelo, MetsPlayerDataAggVertBreak)
+MetsPlayerDataAgg <-MetsPlayerDataAgg[, -c(4,5,7,8,10,11)]
+MetsPlayerDataAgg[order(-MetsPlayerDataAgg$rel_speed),]
+```
+# I used the GeomMLBStadiums package found off Ben Dilday's GitHub page to create the outline of Citi Field. Being that this is the home field of the New York Mets and where the game was played I thought it pertinent to this assignment to have Citi Field a part of this depiction.
+
+```{r}
+devtools::install_github("bdilday/GeomMLBStadiums")
+library(GeomMLBStadiums)
+```
+
+# I filtered out any result that was not a ball in play along with any NA values. Having any outcome that was an NA or 'Undefined' would not help me show how each ball landed within the field of play. I also had to multiply the 'bearing' attribute by two as after some research into the Trackman data and the package. Comparing Trackman to the specifications of the package from GitHub I found that to apply the Trackman data to properly I would have to multiple the 'width placement' by two for optimal visualization.
+
+```{r}
+MetsDataOffense <- filter(MetsPlayerData, !is.na(exit_speed) & play_result != "Undefined")
+```
+
+```{r}
+ggplot(MetsDataOffense, aes(x = bearing * 2, y = distance, color = play_result)) + 
+    geom_spraychart(stadium_ids = "mets", stadium_transform_coords = TRUE, stadium_segments = "all") + 
+  labs(title = "Ball In Play Outcomes", x = "Placement On The Field", y = "Distance")
+```
+# Below I created the chart to determine what batters on average hit the ball the hardest and where their tendencies were. Using the same method as I did to create the pitchers chart, I created the hitters chart. I then created another attribute to simplify the depiction of where each batter's tendencies were when he hit the ball. Based off the summary of the 'direction' attribute I showed what field the batter tended to hit the ball that way the manager could prepare his defense properly the next time they play the opponent.
+
+```{r}
+MetsDataOffenseAggEV <- aggregate(exit_speed ~ batter, data = MetsDataOffense, FUN = mean)
+MetsDataOffenseAggDir <- aggregate(direction ~ batter, data = MetsDataOffense, FUN = mean)
+MetsDataOffenseAgg <- cbind(MetsDataOffenseAggEV, MetsDataOffenseAggDir)
+```
+
+```{r}
+summary(MetsDataOffense$direction)
+```
+
+```{r}
+MetsDataOffenseAgg <- MetsDataOffenseAgg[, -c(3)]
+
+MetsDataOffenseAgg <- mutate(MetsDataOffenseAgg, FieldHit = case_when(direction < -13 ~ "LF", direction > -13 & direction < 13 ~ "CF", FieldHit = direction > 13 ~ "RF"))
+
+MetsDataOffenseAgg
+```
+
