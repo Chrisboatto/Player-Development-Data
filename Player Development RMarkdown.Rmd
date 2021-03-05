@@ -20,7 +20,7 @@ When you click the **Knit** button a document will be generated that includes bo
 # Here I load the data set off my GitHub into the Global Evironment of R
 
 ```{r}
-url <- 'https://raw.githubusercontent.com/Chrisboatto/Player-Development-Data/main/TrackMan%20Data.csv?token=AKUDE7BOIJEBF3JX27NDIWLAG2BGU'
+url <- 'https://raw.githubusercontent.com/Chrisboatto/Player-Development-Data/main/TrackMan%20Data.csv?token=AKUDE7FWY6XPZXDNVHOSSRLAHU2XK'
 
 MetsPlayerData <- read.csv(url)
 ```
@@ -111,6 +111,8 @@ MetsDataOffenseAggEV <- aggregate(exit_speed ~ batter, data = MetsDataOffense, F
 MetsDataOffenseAggDir <- aggregate(direction ~ batter, data = MetsDataOffense, FUN = mean)
 MetsDataOffenseAgg <- cbind(MetsDataOffenseAggEV, MetsDataOffenseAggDir)
 ```
+
+# Checking the summary was key as it allowed me to understand the quartile ranges of the landing spots. This allowed me to gain an understanding of the direction to where the ball would have gone based on the depiction above. The outfield is broken up into three parts, Leftfield Centerfield and Rightfield. By understanding the quartile ranges I was able 
 
 ```{r}
 summary(MetsDataOffense$direction)
